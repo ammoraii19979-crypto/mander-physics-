@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.ViewInAr
@@ -31,16 +36,19 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.content.CurriculumData
 import com.example.data.local.ConceptMasteryEntity
+import com.example.data.local.QuestionAttemptEntity
 import com.example.data.local.UserProgressEntity
 import com.example.data.model.Chapter
 import com.example.ui.navigation.PaceStage
@@ -55,15 +64,19 @@ import com.example.ui.theme.MedicalAmber
 import com.example.ui.theme.MedicalBlue
 import com.example.ui.theme.MedicalTeal
 import com.example.ui.theme.PaceAcquireColor
+import com.example.ui.theme.PaceChallengeColor
 import com.example.ui.theme.PacePrimeColor
 import com.example.ui.theme.SuccessGreen
+import kotlin.math.roundToInt
 
 @Composable
 fun CurriculumScreen(
     userProgress: UserProgressEntity?,
     conceptMasteries: Map<String, ConceptMasteryEntity>,
+    questionAttempts: List<QuestionAttemptEntity> = emptyList(),
     onSelectChapter: (Int) -> Unit,
     onResumeStudy: (String, PaceStage) -> Unit,
+    onViewProgress: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val chapters = CurriculumData.chapters
@@ -75,6 +88,15 @@ fun CurriculumScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Trainee Mastery Circular Progress Indicator
+        item {
+            TraineeMasteryCard(
+                conceptMasteries = conceptMasteries,
+                questionAttempts = questionAttempts,
+                onViewProgress = onViewProgress
+            )
+        }
+
         // Hero / Resume Study Card
         item {
             ResumeStudyHero(
@@ -379,3 +401,263 @@ fun getChapterIcon(chapterNumber: Int): ImageVector {
         else -> Icons.AutoMirrored.Filled.MenuBook
     }
 }
+
+@Composable
+fun TraineeMasteryCard(
+    conceptMasteries: Map<String, ConceptMasteryEntity>,
+    questionAttempts: List<QuestionAttemptEntity>,
+    onViewProgress: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val allConcepts = CurriculumData.getAllConcepts()
+    val totalConcepts = allConcepts.size
+    val masteredConcepts = allConcepts.count { c ->
+        val m = conceptMasteries[c.id]
+        m != null && (m.masteryScore >= 50 || (m.primeCompleted && m.acquireCompleted))
+    }
+
+    val completedChapters = CurriculumData.chapters.count { ch ->
+        val chConcepts = ch.sections.flatMap { it.concepts }
+        chConcepts.isNotEmpty() && chConcepts.all { c ->
+            val m = conceptMasteries[c.id]
+            m != null && (m.masteryScore >= 50 || (m.primeCompleted && m.acquireCompleted))
+        }
+    }
+
+    val curriculumRatio = if (totalConcepts > 0) masteredConcepts.toFloat() / totalConcepts.toFloat() else 0f
+    val curriculumPercent = (curriculumRatio * 100f).roundToInt()
+
+    val totalQuestions = questionAttempts.size
+    val correctQuestions = questionAttempts.count { it.isCorrect }
+    val quizAccuracyRatio = if (totalQuestions > 0) correctQuestions.toFloat() / totalQuestions.toFloat() else 0f
+    val quizAccuracyPercent = (quizAccuracyRatio * 100f).roundToInt()
+
+    // Composite Trainee Mastery across completed chapters and quiz performance
+    val masteryRatio = if (totalQuestions > 0) {
+        (curriculumRatio * 0.55f + quizAccuracyRatio * 0.45f).coerceIn(0f, 1f)
+    } else {
+        curriculumRatio.coerceIn(0f, 1f)
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = masteryRatio,
+        animationSpec = tween(durationMillis = 800),
+        label = "trainee_mastery_progress"
+    )
+
+    val progressColor = when {
+        masteryRatio >= 0.75f -> SuccessGreen
+        masteryRatio >= 0.40f -> MedicalBlue
+        else -> PaceAcquireColor
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("trainee_mastery_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "TRAINEE READINESS & MASTERY",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .clickable(onClick = onViewProgress)
+                        .testTag("view_analytics_badge")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Analytics",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Body: Circular Progress Indicator on Left + Detailed Chapter & Quiz Breakdown on Right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Circular Progress Indicator
+                Box(
+                    modifier = Modifier
+                        .size(106.dp)
+                        .testTag("circular_progress_container"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Background Track
+                    CircularProgressIndicator(
+                        progress = { 1f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        strokeWidth = 9.dp
+                    )
+
+                    // Active Arc
+                    CircularProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("circular_progress_indicator"),
+                        color = progressColor,
+                        strokeWidth = 9.dp,
+                        strokeCap = StrokeCap.Round
+                    )
+
+                    // Center Labels
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "${(animatedProgress * 100f).roundToInt()}%",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "MASTERY",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Detailed Dual Breakdown
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Chapter & Concept Mastery
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Curriculum Chapters",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$completedChapters/10 Ch ($curriculumPercent%)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { curriculumRatio },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(5.dp)
+                                .clip(CircleShape),
+                            color = MedicalTeal,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+
+                    // 2. Quiz Performance
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "FRCR Quiz Score",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (totalQuestions > 0) "$quizAccuracyPercent% ($correctQuestions/$totalQuestions)" else "Not Started",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = PaceChallengeColor
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { if (totalQuestions > 0) quizAccuracyRatio else 0f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(5.dp)
+                                .clip(CircleShape),
+                            color = PaceChallengeColor,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+
+                    // Status Pill
+                    Surface(
+                        color = progressColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                masteryRatio >= 0.75f -> "Exam Ready • High Mastery"
+                                masteryRatio >= 0.35f -> "On Track • Keep Practicing"
+                                else -> "Foundational • Complete PACE"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = progressColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

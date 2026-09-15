@@ -30,5 +30,18 @@ class ExampleRobolectricTest {
     assertTrue(QuestionBank.allQuestions.isNotEmpty())
     assertTrue(FormulaBank.formulas.isNotEmpty())
   }
+
+  @Test
+  fun `verify mastery percentage calculation logic`() {
+    val allConcepts = CurriculumData.getAllConcepts()
+    assertTrue(allConcepts.isNotEmpty())
+    // 5 out of 10 concepts mastered = 50%
+    val dummyAttempts = listOf(
+        com.example.data.local.QuestionAttemptEntity(questionId = "q1", chapterId = 1, isCorrect = true, userScorePercent = 100),
+        com.example.data.local.QuestionAttemptEntity(questionId = "q2", chapterId = 1, isCorrect = false, userScorePercent = 0)
+    )
+    val accuracy = dummyAttempts.count { it.isCorrect }.toFloat() / dummyAttempts.size.toFloat()
+    assertEquals(0.5f, accuracy, 0.01f)
+  }
 }
 

@@ -166,8 +166,10 @@ fun MainApp(
                     CurriculumScreen(
                         userProgress = userProgress,
                         conceptMasteries = conceptMasteries,
+                        questionAttempts = questionAttempts,
                         onSelectChapter = { chId -> viewModel.openChapter(chId) },
-                        onResumeStudy = { cId, stage -> viewModel.openConcept(cId, stage) }
+                        onResumeStudy = { cId, stage -> viewModel.openConcept(cId, stage) },
+                        onViewProgress = { viewModel.navigateToTab(MainTab.PROGRESS) }
                     )
                 }
                 is Screen.ChapterDetail -> {
