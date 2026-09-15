@@ -1,0 +1,6 @@
+{
+  "name": "Farr's Physics",
+  "description": "Interactive PACE Radiology Physics learning platform based faithfully on Farr's Physics for Medical Imaging (2nd Edition) with FRCR physics MCQ question bank.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
