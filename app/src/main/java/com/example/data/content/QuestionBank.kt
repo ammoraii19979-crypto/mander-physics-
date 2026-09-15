@@ -705,4 +705,32 @@ object QuestionBank {
     fun getQuestionsBySection(sectionId: String): List<Question> = allQuestions.filter { it.sectionId == sectionId }
 
     fun getQuestionsByConcept(conceptId: String): List<Question> = allQuestions.filter { it.conceptId == conceptId }
+
+    val unmappedQuestions: List<Question> by lazy {
+        listOf(
+            Question(
+                id = "Q_UNMAPPED_1",
+                chapterId = 0,
+                sectionId = "UNMAPPED",
+                conceptId = "UNMAPPED_1",
+                type = QuestionType.SINGLE_BEST_ANSWER,
+                difficulty = "Core FRCR",
+                stem = "In diagnostic radiography and radioprotection, which factor has the greatest influence on reducing patient skin entrance surface dose without compromising image quality?",
+                options = listOf(
+                    "A. Increasing tube current-time product (mAs)",
+                    "B. Increasing tube voltage (kVp) while reducing mAs accordingly",
+                    "C. Removing the added aluminum filtration",
+                    "D. Reducing source-to-image receptor distance (SID)",
+                    "E. Increasing field size collimation"
+                ),
+                correctAnswerIndex = 1,
+                detailedExplanation = "Increasing kVp increases beam penetration (higher HVL), allowing a significant reduction in mAs. Since patient skin entrance dose is proportional to mAs and roughly proportional to kVp^2, the reduction in mAs easily outweighs the kVp increase, reducing entrance skin dose. Added filtration also reduces skin dose; removing it would increase dose.",
+                sourceChapter = "Unmapped Questions",
+                sourceSection = "General Diagnostic Radiology Principles",
+                printedPage = 0,
+                pdfPage = 0,
+                learningObjective = "Identify exposure optimization techniques for radiation dose reduction."
+            )
+        )
+    }
 }

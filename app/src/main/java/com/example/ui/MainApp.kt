@@ -6,12 +6,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Quiz
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,15 +33,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.BookmarksSheet
 import com.example.ui.components.SearchSheet
 import com.example.ui.navigation.MainTab
-import com.example.ui.navigation.PaceStage
 import com.example.ui.navigation.Screen
-import com.example.ui.screens.ChapterDetailScreen
-import com.example.ui.screens.ConceptStudyScreen
-import com.example.ui.screens.CurriculumScreen
-import com.example.ui.screens.FlashcardDeckScreen
-import com.example.ui.screens.FormulaCalculatorScreen
-import com.example.ui.screens.ProgressScreen
-import com.example.ui.screens.QuestionBankScreen
+import com.example.ui.navigation.SectionStage
+import com.example.ui.screens.BookCurriculumScreen
+import com.example.ui.screens.FirstTimeSetupDialog
+import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.SectionStudyScreen
+import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.StudyProgressScreen
+import com.example.ui.screens.TodayStudyScreen
+import com.example.ui.screens.UnmappedAnkiScreen
+import com.example.ui.screens.UnmappedQuestionsScreen
 import com.example.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,37 +55,30 @@ fun MainApp(
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
 
+    val studyPlan by viewModel.studyPlan.collectAsStateWithLifecycle()
+    val scheduleInfo by viewModel.scheduleInfo.collectAsStateWithLifecycle()
+    val todaySection by viewModel.todayTargetSection.collectAsStateWithLifecycle()
+    val lastStoppedSection by viewModel.lastStoppedSection.collectAsStateWithLifecycle()
+    val sectionProgressMap by viewModel.sectionProgressMap.collectAsStateWithLifecycle()
+    val isSetupOpen by viewModel.isSetupOpen.collectAsStateWithLifecycle()
+
     val userProgress by viewModel.userProgress.collectAsStateWithLifecycle()
     val conceptMasteries by viewModel.conceptMasteries.collectAsStateWithLifecycle()
     val questionAttempts by viewModel.questionAttempts.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
 
-    val selectedConceptId by viewModel.selectedConceptId.collectAsStateWithLifecycle()
-    val selectedPaceStage by viewModel.selectedPaceStage.collectAsStateWithLifecycle()
+    // Section study state
+    val sectionChapterId by viewModel.selectedChapterId.collectAsStateWithLifecycle()
+    val sectionId by viewModel.selectedSectionId.collectAsStateWithLifecycle()
+    val sectionStage by viewModel.selectedSectionStage.collectAsStateWithLifecycle()
 
-    // QBank state
-    val qBankFilter by viewModel.qBankChapterFilter.collectAsStateWithLifecycle()
-    val qBankIndex by viewModel.activeQuestionIndex.collectAsStateWithLifecycle()
-    val qBankSbaSelected by viewModel.qBankSbaSelected.collectAsStateWithLifecycle()
-    val qBankTfAnswers by viewModel.qBankTfAnswers.collectAsStateWithLifecycle()
-    val qBankSubmitted by viewModel.qBankSubmitted.collectAsStateWithLifecycle()
+    val sectionQIndex by viewModel.sectionQIndex.collectAsStateWithLifecycle()
+    val sectionQSbaSelected by viewModel.sectionQSbaSelected.collectAsStateWithLifecycle()
+    val sectionQTfAnswers by viewModel.sectionQTfAnswers.collectAsStateWithLifecycle()
+    val sectionQSubmitted by viewModel.sectionQSubmitted.collectAsStateWithLifecycle()
 
-    // Flashcard deck state
-    val flashcardFilter by viewModel.flashcardChapterFilter.collectAsStateWithLifecycle()
-    val flashcardIndex by viewModel.flashcardIndex.collectAsStateWithLifecycle()
-    val isFlashcardFlipped by viewModel.isFlashcardFlipped.collectAsStateWithLifecycle()
-
-    // In-study Challenge & Flashcards
-    val conceptQOption by viewModel.conceptQOptionSelected.collectAsStateWithLifecycle()
-    val conceptQTf by viewModel.conceptQTfAnswers.collectAsStateWithLifecycle()
-    val conceptQSubmitted by viewModel.conceptQSubmitted.collectAsStateWithLifecycle()
-
-    val conceptCardIndex by viewModel.conceptCardIndex.collectAsStateWithLifecycle()
-    val isConceptCardFlipped by viewModel.isConceptCardFlipped.collectAsStateWithLifecycle()
-
-    // Formula Calculator
-    val selectedFormulaId by viewModel.selectedFormulaId.collectAsStateWithLifecycle()
-    val formulaInputs by viewModel.formulaInputs.collectAsStateWithLifecycle()
+    val sectionCardIndex by viewModel.sectionCardIndex.collectAsStateWithLifecycle()
+    val isSectionCardFlipped by viewModel.isSectionCardFlipped.collectAsStateWithLifecycle()
 
     // Search & Bookmarks Modals
     val isSearchOpen by viewModel.isSearchOpen.collectAsStateWithLifecycle()
@@ -92,66 +86,42 @@ fun MainApp(
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isBookmarksOpen by viewModel.isBookmarksOpen.collectAsStateWithLifecycle()
 
-    val conceptForStudy = viewModel.getConcept(selectedConceptId)
-    val isCurrentConceptBookmarked = bookmarks.any { it.id == "concept_$selectedConceptId" }
+    val isTopLevelScreen = currentScreen !is Screen.SectionStudy &&
+            currentScreen !is Screen.UnmappedQuestions &&
+            currentScreen !is Screen.UnmappedAnki
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Farr's Physics",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.openSearch() },
-                        modifier = Modifier.testTag("open_search_button")
-                    ) {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search Curriculum")
-                    }
-                    IconButton(
-                        onClick = { viewModel.openBookmarks() },
-                        modifier = Modifier.testTag("open_bookmarks_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bookmark,
-                            contentDescription = "Saved Bookmarks",
-                            tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface
+        bottomBar = {
+            if (isTopLevelScreen) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 4.dp
+                ) {
+                    MainTab.values().forEach { tab ->
+                        NavigationBarItem(
+                            selected = currentTab == tab,
+                            onClick = { viewModel.navigateToTab(tab) },
+                            icon = {
+                                Icon(
+                                    imageVector = getTabIcon(tab),
+                                    contentDescription = tab.title
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.title,
+                                    fontWeight = if (currentTab == tab) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp
-            ) {
-                MainTab.values().forEach { tab ->
-                    NavigationBarItem(
-                        selected = currentTab == tab,
-                        onClick = { viewModel.navigateToTab(tab) },
-                        icon = {
-                            Icon(
-                                imageVector = getTabIcon(tab),
-                                contentDescription = tab.title
-                            )
-                        },
-                        label = { Text(tab.title, fontWeight = if (currentTab == tab) FontWeight.Bold else FontWeight.Normal) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
-                    )
                 }
             }
         }
@@ -162,109 +132,154 @@ fun MainApp(
                 .padding(innerPadding)
         ) {
             when (val screen = currentScreen) {
-                is Screen.Curriculum -> {
-                    CurriculumScreen(
+                is Screen.Home -> {
+                    HomeScreen(
+                        todaySection = todaySection,
+                        lastStoppedSection = lastStoppedSection,
+                        sectionProgress = sectionProgressMap,
+                        scheduleInfo = scheduleInfo,
                         userProgress = userProgress,
                         conceptMasteries = conceptMasteries,
                         questionAttempts = questionAttempts,
-                        onSelectChapter = { chId -> viewModel.openChapter(chId) },
-                        onResumeStudy = { cId, stage -> viewModel.openConcept(cId, stage) },
+                        onStartToday = { viewModel.startTodayStudy() },
+                        onResumeStopped = { viewModel.continueWhereStopped() },
+                        onOpenSection = { chId, sId, stage -> viewModel.openSection(chId, sId, stage) },
+                        onToggleRead = { sId -> viewModel.toggleSectionRead(sId) },
+                        onToggleQuestions = { sId -> viewModel.toggleSectionQuestions(sId) },
+                        onToggleEnforce = { sId -> viewModel.toggleSectionEnforce(sId) },
+                        onOpenSearch = { viewModel.openSearch() },
+                        onOpenBookmarks = { viewModel.openBookmarks() },
+                        onOpenSetup = { viewModel.openSetup() },
                         onViewProgress = { viewModel.navigateToTab(MainTab.PROGRESS) }
                     )
                 }
-                is Screen.ChapterDetail -> {
-                    ChapterDetailScreen(
-                        chapterId = screen.chapterId,
-                        conceptMasteries = conceptMasteries,
-                        onBack = { viewModel.navigateToTab(MainTab.CURRICULUM) },
-                        onSelectConcept = { cId, stage -> viewModel.openConcept(cId, stage) }
+
+                is Screen.Book -> {
+                    BookCurriculumScreen(
+                        sectionProgress = sectionProgressMap,
+                        onOpenSection = { chId, sId, stage -> viewModel.openSection(chId, sId, stage) },
+                        onOpenUnmappedQuestions = { viewModel.openUnmappedQuestions() },
+                        onOpenUnmappedAnki = { viewModel.openUnmappedAnki() },
+                        onOpenSearch = { viewModel.openSearch() }
                     )
                 }
-                is Screen.ConceptStudy -> {
-                    ConceptStudyScreen(
-                        conceptId = selectedConceptId,
-                        currentStage = selectedPaceStage,
-                        conceptMastery = conceptMasteries[selectedConceptId],
-                        isBookmarked = isCurrentConceptBookmarked,
-                        onSelectStage = { stage -> viewModel.setPaceStage(stage) },
-                        onCompleteStage = { stage -> viewModel.markCurrentStageCompleted(stage) },
-                        onToggleBookmark = {
-                            conceptForStudy?.let { c ->
-                                viewModel.toggleBookmark(
-                                    id = "concept_${c.id}",
-                                    type = "CONCEPT",
-                                    title = c.title,
-                                    subtitle = "Chapter ${c.chapterId} • Section ${c.sectionId}",
-                                    targetId = c.id
-                                )
-                            }
-                        },
-                        onBackToChapter = {
-                            conceptForStudy?.let { viewModel.openChapter(it.chapterId) }
-                                ?: viewModel.navigateToTab(MainTab.CURRICULUM)
-                        },
-                        // Challenge props
-                        conceptQuestions = viewModel.getQuestionsForConcept(selectedConceptId),
-                        selectedSbaOption = conceptQOption,
-                        tfAnswers = conceptQTf,
-                        isQSubmitted = conceptQSubmitted,
-                        onSelectSbaOption = { idx -> viewModel.selectConceptQOption(idx) },
-                        onToggleTfStem = { idx, ans -> viewModel.toggleConceptQTf(idx, ans) },
-                        onSubmitQuestion = { q -> viewModel.submitConceptQ(q) },
-                        // Flashcards props
-                        conceptCards = viewModel.getFlashcardsForConcept(selectedConceptId),
-                        cardIndex = conceptCardIndex,
-                        isCardFlipped = isConceptCardFlipped,
-                        onFlipCard = { viewModel.flipConceptCard() },
-                        onRateCard = { card, rating, total -> viewModel.rateConceptCard(card, rating, total) }
+
+                is Screen.Today -> {
+                    TodayStudyScreen(
+                        todaySection = todaySection,
+                        sectionProgress = sectionProgressMap,
+                        onOpenSection = { chId, sId, stage -> viewModel.openSection(chId, sId, stage) },
+                        onToggleRead = { sId -> viewModel.toggleSectionRead(sId) },
+                        onToggleQuestions = { sId -> viewModel.toggleSectionQuestions(sId) },
+                        onToggleEnforce = { sId -> viewModel.toggleSectionEnforce(sId) },
+                        onMarkAllDone = { sId -> viewModel.markSectionAllCompleted(sId) },
+                        onNextSection = { viewModel.navigateToNextSection() }
                     )
                 }
-                is Screen.QuestionBank -> {
-                    QuestionBankScreen(
-                        selectedChapterFilter = qBankFilter,
-                        questionIndex = qBankIndex,
-                        selectedSbaOption = qBankSbaSelected,
-                        tfAnswers = qBankTfAnswers,
-                        isSubmitted = qBankSubmitted,
-                        onSelectChapterFilter = { ch -> viewModel.setQBankChapterFilter(ch) },
-                        onNextQuestion = { total -> viewModel.nextQBankQuestion(total) },
-                        onPrevQuestion = { viewModel.prevQBankQuestion() },
-                        onSelectSbaOption = { idx -> viewModel.selectQBankSba(idx) },
-                        onToggleTfStem = { idx, ans -> viewModel.toggleQBankTf(idx, ans) },
-                        onSubmitQuestion = { q -> viewModel.submitQBankQuestion(q) }
-                    )
-                }
-                is Screen.FlashcardDeck -> {
-                    FlashcardDeckScreen(
-                        selectedChapterFilter = flashcardFilter,
-                        cardIndex = flashcardIndex,
-                        isFlipped = isFlashcardFlipped,
-                        onSelectChapterFilter = { ch -> viewModel.setFlashcardChapterFilter(ch) },
-                        onFlipCard = { viewModel.flipFlashcard() },
-                        onNextCard = { total -> viewModel.nextFlashcard(total) },
-                        onPrevCard = { viewModel.prevFlashcard() },
-                        onRateCard = { card, rating, total -> viewModel.rateFlashcard(card, rating, total) }
-                    )
-                }
-                is Screen.FormulaBank -> {
-                    FormulaCalculatorScreen(
-                        selectedFormulaId = selectedFormulaId,
-                        inputs = formulaInputs,
-                        onSelectFormula = { id -> viewModel.selectFormula(id) },
-                        onUpdateInput = { sym, v -> viewModel.updateFormulaInput(sym, v) },
-                        getFormulaResult = { f -> viewModel.getFormulaResult(f) }
-                    )
-                }
+
                 is Screen.Progress -> {
-                    ProgressScreen(
+                    StudyProgressScreen(
+                        scheduleInfo = scheduleInfo,
+                        sectionProgress = sectionProgressMap,
                         conceptMasteries = conceptMasteries,
                         questionAttempts = questionAttempts,
+                        onHandleMissedDays = { keepOriginal -> viewModel.handleMissedDays(keepOriginal) },
+                        onOpenSetup = { viewModel.openSetup() }
+                    )
+                }
+
+                is Screen.Settings -> {
+                    SettingsScreen(
+                        studyPlan = studyPlan,
+                        scheduleInfo = scheduleInfo,
+                        onOpenSetup = { viewModel.openSetup() },
+                        onOpenUnmappedQuestions = { viewModel.openUnmappedQuestions() },
+                        onOpenUnmappedAnki = { viewModel.openUnmappedAnki() }
+                    )
+                }
+
+                is Screen.SectionStudy -> {
+                    SectionStudyScreen(
+                        chapterId = screen.chapterId,
+                        sectionId = screen.sectionId,
+                        currentStage = sectionStage,
+                        sectionProgress = sectionProgressMap[screen.sectionId],
                         bookmarks = bookmarks,
-                        onSelectConcept = { cId, stage -> viewModel.openConcept(cId, stage) }
+                        onSelectStage = { stage -> viewModel.setSectionStage(stage) },
+                        onToggleRead = { sId -> viewModel.toggleSectionRead(sId) },
+                        onToggleQuestions = { sId -> viewModel.toggleSectionQuestions(sId) },
+                        onToggleEnforce = { sId -> viewModel.toggleSectionEnforce(sId) },
+                        onMarkAllComplete = { sId -> viewModel.markSectionAllCompleted(sId) },
+                        onToggleBookmark = { id, type, title, subtitle, targetId ->
+                            viewModel.toggleBookmark(id, type, title, subtitle, targetId)
+                        },
+                        onPrevSection = { viewModel.navigateToPrevSection() },
+                        onNextSection = { viewModel.navigateToNextSection() },
+                        onBack = { viewModel.navigateToTab(MainTab.BOOK) },
+                        questionIndex = sectionQIndex,
+                        selectedOption = sectionQSbaSelected,
+                        tfAnswers = sectionQTfAnswers,
+                        isQSubmitted = sectionQSubmitted,
+                        onSelectOption = { idx -> viewModel.selectSectionQOption(idx) },
+                        onToggleTf = { idx, ans -> viewModel.toggleSectionQTf(idx, ans) },
+                        onSubmitQuestion = { q -> viewModel.submitSectionQuestion(q) },
+                        onNextQuestion = { total -> viewModel.nextSectionQuestion(total) },
+                        onPrevQuestion = { viewModel.prevSectionQuestion() },
+                        cardIndex = sectionCardIndex,
+                        isCardFlipped = isSectionCardFlipped,
+                        onFlipCard = { viewModel.flipSectionCard() },
+                        onRateCard = { card, rating, total -> viewModel.rateSectionCard(card, rating, total) }
+                    )
+                }
+
+                is Screen.UnmappedQuestions -> {
+                    UnmappedQuestionsScreen(
+                        onBack = { viewModel.navigateToTab(MainTab.BOOK) }
+                    )
+                }
+
+                is Screen.UnmappedAnki -> {
+                    UnmappedAnkiScreen(
+                        onBack = { viewModel.navigateToTab(MainTab.BOOK) }
+                    )
+                }
+
+                else -> {
+                    // Fallback to Home
+                    HomeScreen(
+                        todaySection = todaySection,
+                        lastStoppedSection = lastStoppedSection,
+                        sectionProgress = sectionProgressMap,
+                        scheduleInfo = scheduleInfo,
+                        userProgress = userProgress,
+                        conceptMasteries = conceptMasteries,
+                        questionAttempts = questionAttempts,
+                        onStartToday = { viewModel.startTodayStudy() },
+                        onResumeStopped = { viewModel.continueWhereStopped() },
+                        onOpenSection = { chId, sId, stage -> viewModel.openSection(chId, sId, stage) },
+                        onToggleRead = { sId -> viewModel.toggleSectionRead(sId) },
+                        onToggleQuestions = { sId -> viewModel.toggleSectionQuestions(sId) },
+                        onToggleEnforce = { sId -> viewModel.toggleSectionEnforce(sId) },
+                        onOpenSearch = { viewModel.openSearch() },
+                        onOpenBookmarks = { viewModel.openBookmarks() },
+                        onOpenSetup = { viewModel.openSetup() },
+                        onViewProgress = { viewModel.navigateToTab(MainTab.PROGRESS) }
                     )
                 }
             }
         }
+    }
+
+    // First Time / Edit Study Schedule Dialog
+    if (isSetupOpen) {
+        FirstTimeSetupDialog(
+            initialPlan = studyPlan,
+            onDismiss = { viewModel.closeSetup() },
+            onSavePlan = { option, days, daysPerWeek, mins, requireAll ->
+                viewModel.saveStudyPlan(option, days, daysPerWeek, mins, requireAll)
+                viewModel.closeSetup()
+            }
+        )
     }
 
     // Search Sheet
@@ -275,15 +290,7 @@ fun MainApp(
             onQueryChanged = { viewModel.onSearchQueryChanged(it) },
             onSelectResult = { item ->
                 viewModel.closeSearch()
-                if (item.type == "CONCEPT") {
-                    viewModel.openConcept(item.targetId, PaceStage.PRIME)
-                } else if (item.type == "FORMULA") {
-                    viewModel.navigateToTab(MainTab.FORMULAS)
-                    viewModel.selectFormula(item.targetId)
-                } else if (item.type == "FLASHCARD") {
-                    viewModel.navigateToTab(MainTab.FLASHCARDS)
-                    viewModel.setFlashcardChapterFilter(item.chapterId)
-                }
+                viewModel.openSection(item.chapterId, item.targetId, SectionStage.READ)
             },
             onDismiss = { viewModel.closeSearch() }
         )
@@ -295,9 +302,7 @@ fun MainApp(
             bookmarks = bookmarks,
             onSelectBookmark = { b ->
                 viewModel.closeBookmarks()
-                if (b.type == "CONCEPT") {
-                    viewModel.openConcept(b.targetId, PaceStage.PRIME)
-                }
+                viewModel.openSection(1, b.targetId, SectionStage.READ)
             },
             onDeleteBookmark = { id ->
                 viewModel.toggleBookmark(id, "", "", "", "")
@@ -309,11 +314,10 @@ fun MainApp(
 
 fun getTabIcon(tab: MainTab): ImageVector {
     return when (tab) {
-        MainTab.CURRICULUM -> Icons.Default.MenuBook
-        MainTab.PACE_STUDY -> Icons.Default.School
-        MainTab.QUESTIONS -> Icons.Default.Quiz
-        MainTab.FLASHCARDS -> Icons.Default.Style
-        MainTab.FORMULAS -> Icons.Default.Calculate
+        MainTab.HOME -> Icons.Default.Home
+        MainTab.BOOK -> Icons.Default.MenuBook
+        MainTab.TODAY -> Icons.Default.CalendarToday
         MainTab.PROGRESS -> Icons.Default.Analytics
+        MainTab.SETTINGS -> Icons.Default.Settings
     }
 }

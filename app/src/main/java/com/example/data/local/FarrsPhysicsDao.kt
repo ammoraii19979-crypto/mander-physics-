@@ -52,4 +52,28 @@ interface FarrsPhysicsDao {
 
     @Query("DELETE FROM bookmarks WHERE id = :id")
     suspend fun removeBookmark(id: String)
+
+    @Query("SELECT * FROM study_plan WHERE id = 1 LIMIT 1")
+    fun getStudyPlan(): Flow<StudyPlanEntity?>
+
+    @Query("SELECT * FROM study_plan WHERE id = 1 LIMIT 1")
+    suspend fun getStudyPlanSync(): StudyPlanEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveStudyPlan(plan: StudyPlanEntity)
+
+    @Query("SELECT * FROM section_progress")
+    fun getAllSectionProgress(): Flow<List<SectionProgressEntity>>
+
+    @Query("SELECT * FROM section_progress WHERE sectionId = :sectionId LIMIT 1")
+    fun getSectionProgress(sectionId: String): Flow<SectionProgressEntity?>
+
+    @Query("SELECT * FROM section_progress WHERE sectionId = :sectionId LIMIT 1")
+    suspend fun getSectionProgressSync(sectionId: String): SectionProgressEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveSectionProgress(progress: SectionProgressEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveAllSectionProgress(list: List<SectionProgressEntity>)
 }

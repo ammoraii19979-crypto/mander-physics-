@@ -9,6 +9,8 @@ import com.example.data.local.ConceptMasteryEntity
 import com.example.data.local.FarrsPhysicsDao
 import com.example.data.local.FlashcardReviewEntity
 import com.example.data.local.QuestionAttemptEntity
+import com.example.data.local.SectionProgressEntity
+import com.example.data.local.StudyPlanEntity
 import com.example.data.local.UserProgressEntity
 import com.example.data.model.Chapter
 import com.example.data.model.Concept
@@ -25,11 +27,21 @@ class FarrsPhysicsRepository(
     val questionAttempts: Flow<List<QuestionAttemptEntity>> = dao.getAllQuestionAttempts()
     val flashcardReviews: Flow<List<FlashcardReviewEntity>> = dao.getAllFlashcardReviews()
     val bookmarks: Flow<List<BookmarkEntity>> = dao.getAllBookmarks()
+    val studyPlan: Flow<StudyPlanEntity?> = dao.getStudyPlan()
+    val sectionProgressList: Flow<List<SectionProgressEntity>> = dao.getAllSectionProgress()
 
     // Curriculum queries
     fun getChapters(): List<Chapter> = CurriculumData.chapters
 
     fun getChapter(chapterId: Int): Chapter? = CurriculumData.getChapter(chapterId)
+
+    fun getSection(chapterId: Int, sectionId: String): com.example.data.model.Section? {
+        return CurriculumData.getSection(chapterId, sectionId)
+    }
+
+    fun getAllSections(): List<com.example.data.model.Section> = CurriculumData.allSections
+
+    fun getSectionById(sectionId: String): com.example.data.model.Section? = CurriculumData.getSectionById(sectionId)
 
     fun getConcept(conceptId: String): Concept? = CurriculumData.getConcept(conceptId)
 
@@ -40,14 +52,99 @@ class FarrsPhysicsRepository(
 
     fun getQuestionsForChapter(chapterId: Int): List<Question> = QuestionBank.getQuestionsByChapter(chapterId)
 
+    fun getQuestionsForSection(sectionId: String): List<Question> = QuestionBank.getQuestionsBySection(sectionId)
+
     fun getQuestionsForConcept(conceptId: String): List<Question> = QuestionBank.getQuestionsByConcept(conceptId)
+
+    fun getUnmappedQuestions(): List<Question> = QuestionBank.unmappedQuestions
 
     // Flashcards & Enforce
     fun getAllFlashcards(): List<Flashcard> = FlashcardBank.allFlashcards
 
     fun getFlashcardsForChapter(chapterId: Int): List<Flashcard> = FlashcardBank.getFlashcardsByChapter(chapterId)
 
+    fun getFlashcardsForSection(sectionId: String): List<Flashcard> = FlashcardBank.getFlashcardsBySection(sectionId)
+
     fun getFlashcardsByCategory(category: String): List<Flashcard> = FlashcardBank.getFlashcardsByCategory(category)
+
+    fun getUnmappedFlashcards(): List<Flashcard> = FlashcardBank.unmappedFlashcards
+
+    // Study Plan Management
+    suspend fun getStudyPlanSync(): StudyPlanEntity? = dao.getStudyPlanSync()
+
+    suspend fun saveStudyPlan(plan: StudyPlanEntity) {
+        dao.saveStudyPlan(plan)
+    }
+
+    suspend fun getSectionProgressSync(sectionId: String): SectionProgressEntity? {
+        return dao.getSectionProgressSync(sectionId)
+    }
+
+    suspend fun setSectionReadCompleted(sectionId: String, completed: Boolean) {
+        val section = CurriculumData.getSectionById(sectionId) ?: return
+        val current = dao.getSectionProgressSync(sectionId) ?: SectionProgressEntity(
+            sectionId = sectionId,
+            chapterId = section.chapterId
+        )
+        dao.saveSectionProgress(
+            current.copy(
+                isReadCompleted = completed,
+                lastStudyTimestamp = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun setSectionQuestionsCompleted(sectionId: String, completed: Boolean, attemptedCount: Int, correctCount: Int) {
+        val section = CurriculumData.getSectionById(sectionId) ?: return
+        val current = dao.getSectionProgressSync(sectionId) ?: SectionProgressEntity(
+            sectionId = sectionId,
+            chapterId = section.chapterId
+        )
+        dao.saveSectionProgress(
+            current.copy(
+                isQuestionsCompleted = completed,
+                questionsAttemptedCount = maxOf(current.questionsAttemptedCount, attemptedCount),
+                questionsCorrectCount = maxOf(current.questionsCorrectCount, correctCount),
+                lastStudyTimestamp = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun setSectionEnforceCompleted(sectionId: String, completed: Boolean, reviewedCount: Int) {
+        val section = CurriculumData.getSectionById(sectionId) ?: return
+        val current = dao.getSectionProgressSync(sectionId) ?: SectionProgressEntity(
+            sectionId = sectionId,
+            chapterId = section.chapterId
+        )
+        dao.saveSectionProgress(
+            current.copy(
+                isEnforceCompleted = completed,
+                ankiCardsReviewedCount = maxOf(current.ankiCardsReviewedCount, reviewedCount),
+                lastStudyTimestamp = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun markSectionAllCompleted(sectionId: String) {
+        val section = CurriculumData.getSectionById(sectionId) ?: return
+        val qCount = getQuestionsForSection(sectionId).size
+        val aCount = getFlashcardsForSection(sectionId).size
+        val current = dao.getSectionProgressSync(sectionId) ?: SectionProgressEntity(
+            sectionId = sectionId,
+            chapterId = section.chapterId
+        )
+        dao.saveSectionProgress(
+            current.copy(
+                isReadCompleted = true,
+                isQuestionsCompleted = true,
+                isEnforceCompleted = true,
+                questionsAttemptedCount = maxOf(current.questionsAttemptedCount, qCount),
+                questionsCorrectCount = maxOf(current.questionsCorrectCount, qCount),
+                ankiCardsReviewedCount = maxOf(current.ankiCardsReviewedCount, aCount),
+                lastStudyTimestamp = System.currentTimeMillis()
+            )
+        )
+    }
 
     // Formulas
     fun getAllFormulas(): List<FormulaItem> = FormulaBank.formulas

@@ -27,8 +27,23 @@ class ExampleRobolectricTest {
   fun `verify curriculum has 10 chapters and content`() {
     val chapters = CurriculumData.chapters
     assertEquals(10, chapters.size)
+    assertEquals(216, CurriculumData.TOTAL_BOOK_PAGES)
+    assertTrue(CurriculumData.allSections.isNotEmpty())
     assertTrue(QuestionBank.allQuestions.isNotEmpty())
-    assertTrue(FormulaBank.formulas.isNotEmpty())
+    assertTrue(QuestionBank.unmappedQuestions.isNotEmpty())
+  }
+
+  @Test
+  fun `verify section page ranges and counts`() {
+    val sec1 = CurriculumData.getSection(1, "1.1")
+    assertTrue(sec1 != null)
+    sec1?.let {
+      val (start, end) = CurriculumData.getSectionPageRange(it)
+      val count = CurriculumData.getSectionPageCount(it)
+      assertTrue(start >= 1)
+      assertTrue(end >= start)
+      assertEquals(end - start + 1, count)
+    }
   }
 
   @Test

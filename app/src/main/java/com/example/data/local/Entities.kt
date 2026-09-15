@@ -62,3 +62,31 @@ data class BookmarkEntity(
     val targetId: String,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "study_plan")
+data class StudyPlanEntity(
+    @PrimaryKey val id: Int = 1,
+    val isSetupCompleted: Boolean = true,
+    val targetTimeframeOption: String = "2_MONTHS", // "2_WEEKS", "1_MONTH", "2_MONTHS", "3_MONTHS", "CUSTOM"
+    val targetDays: Int = 60,
+    val targetDateTimestamp: Long = System.currentTimeMillis() + (60L * 24 * 60 * 60 * 1000L),
+    val studyDaysPerWeek: Int = 6,
+    val dailyMinutes: Int = 45,
+    val requireAllForCompletion: Boolean = true, // true = Read + Questions + Enforce; false = Read only
+    val startDateTimestamp: Long = System.currentTimeMillis(),
+    val missedDaysCount: Int = 0
+)
+
+@Entity(tableName = "section_progress")
+data class SectionProgressEntity(
+    @PrimaryKey val sectionId: String,
+    val chapterId: Int,
+    val isReadCompleted: Boolean = false,
+    val isQuestionsCompleted: Boolean = false,
+    val isEnforceCompleted: Boolean = false,
+    val questionsAttemptedCount: Int = 0,
+    val questionsCorrectCount: Int = 0,
+    val ankiCardsReviewedCount: Int = 0,
+    val lastStudyTimestamp: Long = System.currentTimeMillis()
+)
+

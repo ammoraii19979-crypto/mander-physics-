@@ -11,9 +11,11 @@ import androidx.room.RoomDatabase
         ConceptMasteryEntity::class,
         QuestionAttemptEntity::class,
         FlashcardReviewEntity::class,
-        BookmarkEntity::class
+        BookmarkEntity::class,
+        StudyPlanEntity::class,
+        SectionProgressEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,7 +31,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "farrs_physics_pace.db"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

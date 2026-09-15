@@ -111,8 +111,42 @@ object CurriculumData {
 
     fun getChapter(chapterId: Int): Chapter? = chapters.find { it.id == chapterId }
 
+    val allSections: List<Section> by lazy { chapters.flatMap { it.sections } }
+
+    const val TOTAL_BOOK_PAGES = 216
+
     fun getSection(chapterId: Int, sectionId: String): Section? {
         return getChapter(chapterId)?.sections?.find { it.id == sectionId }
+    }
+
+    fun getSectionById(sectionId: String): Section? {
+        return allSections.find { it.id == sectionId }
+    }
+
+    fun getSectionPageRange(section: Section): Pair<Int, Int> {
+        val index = allSections.indexOfFirst { it.id == section.id }
+        val startPage = section.printedPage
+        val endPage = if (index >= 0 && index < allSections.size - 1) {
+            maxOf(startPage, allSections[index + 1].printedPage - 1)
+        } else {
+            TOTAL_BOOK_PAGES
+        }
+        return Pair(startPage, endPage)
+    }
+
+    fun getSectionPageCount(section: Section): Int {
+        val (start, end) = getSectionPageRange(section)
+        return maxOf(1, end - start + 1)
+    }
+
+    fun getNextSection(sectionId: String): Section? {
+        val index = allSections.indexOfFirst { it.id == sectionId }
+        return if (index in 0 until allSections.size - 1) allSections[index + 1] else null
+    }
+
+    fun getPreviousSection(sectionId: String): Section? {
+        val index = allSections.indexOfFirst { it.id == sectionId }
+        return if (index > 0) allSections[index - 1] else null
     }
 
     fun getAllConcepts(): List<com.example.data.model.Concept> {

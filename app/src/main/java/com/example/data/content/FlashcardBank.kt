@@ -282,5 +282,36 @@ object FlashcardBank {
 
     fun getFlashcardsByChapter(chapterId: Int): List<Flashcard> = allFlashcards.filter { it.chapterId == chapterId }
 
+    fun getFlashcardsBySection(sectionId: String): List<Flashcard> {
+        return allFlashcards.filter { it.sourceSection.startsWith(sectionId) }
+    }
+
     fun getFlashcardsByCategory(category: String): List<Flashcard> = allFlashcards.filter { it.category.equals(category, ignoreCase = true) }
+
+    val unmappedFlashcards: List<Flashcard> by lazy {
+        listOf(
+            Flashcard(
+                id = "FC_UNMAPPED_1",
+                chapterId = 0,
+                category = "General FRCR Review",
+                question = "What are the core differences between Stochastic and Deterministic biological radiation effects?",
+                answer = "Deterministic effects require a threshold dose, and severity increases with dose (e.g., skin erythema, cataract). Stochastic effects have no known threshold; probability increases with dose, but severity is all-or-none (e.g., radiation-induced cancer, hereditary mutations).",
+                keyPoints = listOf("Deterministic: cell killing / threshold", "Stochastic: DNA mutations / non-threshold", "ALARA/ALARP applies to stochastic risk limitation"),
+                sourceSection = "General / Unmapped Cross-Chapter",
+                printedPage = 0,
+                pdfPage = 0
+            ),
+            Flashcard(
+                id = "FC_UNMAPPED_2",
+                chapterId = 0,
+                category = "General FRCR Review",
+                question = "What is Modulation Transfer Function (MTF) and what does an MTF value of 0.1 (10%) typically signify?",
+                answer = "MTF measures the ability of an imaging system to transfer spatial frequency (contrast detail) from the subject to the image as a function of spatial frequency (lp/mm). MTF=0.1 (10% contrast) is commonly defined as the limiting spatial resolution.",
+                keyPoints = listOf("MTF(0) = 1.0 (100% transfer at low frequencies)", "Drops with increasing lp/mm due to blur", "Limiting resolution = frequency where MTF falls to 5-10%"),
+                sourceSection = "General / Unmapped Cross-Chapter",
+                printedPage = 0,
+                pdfPage = 0
+            )
+        )
+    }
 }
